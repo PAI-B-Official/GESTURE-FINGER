@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kontrol Partikel 3D: PAI B Saturnus (Isometric)</title>
+    
+    <!-- Fonts & Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'crimson-dark': '#1a0505',
+                        'crimson-main': '#8a0000',
+                        'crimson-light': '#ff1f1f',
+                        'glass': 'rgba(40, 0, 0, 0.6)',
+                    },
+                    fontFamily: {
+                        'tech': ['Orbitron', 'sans-serif'],
+                        'body': ['Poppins', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0a0000;
+            color: #e5e5e5;
+            font-family: 'Poppins', sans-serif;
+            touch-action: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #input-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 320px;
+            height: 240px;
+            transform: scaleX(-1);
+            visibility: hidden; 
+        }
+
+        .glass-panel {
+            background: rgba(40, 0, 0, 0.7);
+            border: 1px solid rgba(255, 50, 50, 0.2);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        #help-container {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 20;
+        }
+
+        #help-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(138, 0, 0, 0.2);
+            border: 1px solid rgba(255, 31, 31, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #ff1f1f;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(138, 0, 0, 0.3);
+        }
+
+        #help-icon:hover {
+            background: rgba(220, 38, 38, 0.2);
+            border-color: #ff1f1f;
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(255, 31, 31, 0.6);
+            color: white;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 65px;
+            left: 0;
+            width: 300px;
+            max-width: 80vw;
+            padding: 20px;
+            border-radius: 16px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            visibility: hidden;
+        }
+
+        #help-container:hover #ui-layer, #help-container:active #ui-layer {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            margin: 0 0 12px 0;
+            color: #ff1f1f;
+            text-shadow: 0 0 10px rgba(255, 31, 31, 0.5);
+            border-bottom: 1px solid rgba(255, 50, 50, 0.2);
+            padding-bottom: 8px;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+        }
+
+        ul {
+            padding-left: 0;
+            list-style: none;
+            margin: 10px 0;
+            font-size: 0.85rem;
+            color: #d1d5db;
+            line-height: 1.6;
+        }
+        
+        ul li {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        ul li i {
+            width: 24px;
+            text-align: center;
+            margin-right: 10px;
+            color: #ef4444;
+        }
+
+        ul li strong {
+            color: white;
+            margin-right: 5px;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-top: 20px;
+            background: #1a0505;
+            color: #9ca3af;
+            border: 1px solid #374151;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: rgba(138, 0, 0, 0.3);
+            color: #ff1f1f;
+            border-color: rgba(255, 31, 31, 0.5);
+            box-shadow: 0 0 20px rgba(138, 0, 0, 0.3);
+            text-shadow: 0 0 5px rgba(255, 31, 31, 0.5);
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            font-size: 0.9rem;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            color: #ff1f1f;
+            letter-spacing: 0.15em;
+            text-align: center;
+            width: 100%;
+            pointer-events: auto; 
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 50, 50, 0.1);
+            border-left-color: #ff1f1f;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(100px);
+            z-index: 0;
+            opacity: 0.2;
+        }
+
+        #cam-preview {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-glow bg-red-900 top-[-200px] left-[-200px] animate-pulse-slow"></div>
+    <div class="bg-glow bg-red-800 bottom-[-200px] right-[-200px] animate-pulse-slow"></div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <div id="loading-text" class="animate-pulse px-4">MEMUAT SISTEM & KAMERA...</div>
+        <button id="start-btn" class="mt-4 px-6 py-2 bg-red-800 hover:bg-red-600 border border-red-500 text-white rounded-lg font-bold hidden transition-colors shadow-[0_0_15px_rgba(255,0,0,0.4)]">
+            <i class="fas fa-camera mr-2"></i> AKTIFKAN KAMERA
+        </button>
+    </div>
+
+    <div id="help-container">
+        <div id="help-icon">?</div>
+        <div id="ui-layer" class="glass-panel">
+            <h1>PANDUAN GESTUR</h1>
+            <ul>
+                <li><i class="fas fa-globe"></i> <span><strong>Saturnus</strong>: Mode Standby</span></li>
+                <li><i class="fas fa-fist-raised"></i> <span><strong>Genggam</strong>: Cincin Berputar Cepat</span></li>
+                <li><i class="fas fa-hand-paper"></i> <span><strong>Buka (5 Jari)</strong>: INTRO >> AUTO SEQUENCE</span></li>
+                <li><i class="fas fa-fingerprint"></i> <span><strong>4 Jari</strong>: "PAI B"</span></li>
+            </ul>
+            <div id="status" class="status-badge">Menunggu Kamera...</div>
+        </div>
+    </div>
+
+    <div id="cam-preview"></div>
+    <video id="input-video" playsinline autoplay muted></video>
+    <div id="canvas-container"></div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Ganti library kamera dengan Native Browser API agar lebih ringan dan support HTTPS hosting -->
+    <!-- Removed: camera_utils.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script>
+        // --- CONFIGURATION ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // OPTIMASI: Kurangi jumlah partikel drastis agar tidak macet di HP/Hosting
+        const CONFIG = {
+            particleCount: isMobile ? 3500 : 7500, // Turunkan drastis (sebelumnya 8k/16k)
+            sphereRatio: 0.6, 
+            textScale: 0.22, 
+            colors: {
+                saturnMain: new THREE.Color(0xE6DBA6), 
+                saturnBand1: new THREE.Color(0xD9C789), 
+                saturnBand2: new THREE.Color(0xBFA56E), 
+                ringBright: new THREE.Color(0xFFFFFF), 
+                ringDim: new THREE.Color(0xAAAAAA), 
+
+                gold: new THREE.Color(0xff1f1f), 
+                text: new THREE.Color(0xff1f1f), 
+                explode: new THREE.Color(0x8a0000),
+                brightWhite: new THREE.Color(0xFFFFFF)
+            },
+            // FILE AUDIO LOKAL ANDA
+            sounds: {
+                countdown: 'countdown.mp3', 
+                final: 'final.mp3' 
+            }
+        };
+
+        const STATE = {
+            mode: 'SATURN',
+            handPresent: false,
+            hasOpenedLink: false,
+            explodeStartTime: null,
+            lastPlayedCount: -1,
+            sequenceTriggered: false 
+        };
+
+        const TARGETS = {
+            sphere: {
+                default: [],
+                p: [], pa: [], pai: [], paib: [], 
+                mixed: [], ready: [],
+                cnt5: [], cnt4: [], cnt3: [], cnt2: [], cnt1: [] 
+            },
+            ring: {
+                default: [],
+                p: [], pa: [], pai: [], paib: [], 
+                mixed: [], ready: [],
+                cnt5: [], cnt4: [], cnt3: [], cnt2: [], cnt1: []
+            },
+            colors: {
+                sphere: [],
+                ring: [],
+                mixed: []
+            }
+        };
+
+        const statusEl = document.getElementById('status');
+        const loadingEl = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const startBtn = document.getElementById('start-btn');
+        
+        let scene, camera, renderer;
+        let sphereMesh, ringMesh, particleGroup;
+        let clock = new THREE.Clock();
+        
+        // --- 0. SOUND SYSTEM ---
+        function playSound(type) {
+            const filePath = type === 'final' ? CONFIG.sounds.final : CONFIG.sounds.countdown;
+            const audio = new Audio(filePath);
+            audio.play().catch(e => {
+                // Ignore audio errors
+            });
+        }
+
+        // --- 1. TEXT GENERATION SYSTEM (PERBAIKAN CUT-OFF) ---
+        
+        function generateTextPoints(type, textString = "") {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // PERBAIKAN: Perbesar ukuran canvas agar teks tidak terpotong
+            canvas.width = 1000; 
+            canvas.height = 500; 
+            
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            if (type === 'welcome') {
+                ctx.font = '900 80px "Orbitron", Arial';
+                ctx.fillText("WELCOME TO", cx, 120);
+                ctx.fillText("SEMESTER II", cx, 250);
+                ctx.fillText("GUYS :)", cx, 380);
+            } 
+            else if (type === 'ready') {
+                // FIXED: Font disesuaikan dengan canvas baru, posisi diatur ulang
+                ctx.fillStyle = '#cccccc';
+                ctx.font = '700 60px "Poppins", Arial';
+                ctx.fillText("Are You", cx, cy - 90);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = '900 160px "Orbitron", Arial';
+                ctx.fillText("READY ?", cx, cy + 60);
+            }
+            else if (type === 'count') {
+                ctx.font = '900 300px "Orbitron", Arial'; 
+                ctx.fillText(textString, cx, cy);
+            }
+            else {
+                ctx.font = '900 220px "Orbitron", Arial'; 
+                ctx.fillText(textString, cx, cy);
+            }
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const points = [];
+
+            // OPTIMASI: Tambah step (pixel skipping) agar lebih sedikit partikel teks (lebih ringan)
+            const step = 4; 
+            for (let y = 0; y < canvas.height; y += step) { 
+                for (let x = 0; x < canvas.width; x += step) {
+                    const index = (y * canvas.width + x) * 4;
+                    if (data[index] > 128) {
+                        points.push({
+                            x: (x - cx) * CONFIG.textScale,
+                            y: -(y - cy) * CONFIG.textScale,
+                            z: 0
+                        });
+                    }
+                }
+            }
+            return points;
+        }
+
+        // --- 2. PRE-CALCULATE SHAPES ---
+
+        function initShapes() {
+            const sphereCount = Math.floor(CONFIG.particleCount * CONFIG.sphereRatio);
+            const ringCount = CONFIG.particleCount - sphereCount;
+            
+            const getSaturnColor = (phi) => {
+                const nPhi = phi / Math.PI;
+                if (nPhi < 0.1 || nPhi > 0.9) return CONFIG.colors.saturnBand2;
+                if ((nPhi > 0.3 && nPhi < 0.4) || (nPhi > 0.6 && nPhi < 0.7)) return CONFIG.colors.saturnBand1;
+                return CONFIG.colors.saturnMain;
+            };
+
+            for (let i = 0; i < sphereCount; i++) {
+                const r = 24; 
+                const theta = Math.random() * Math.PI * 2; 
+                const phi = Math.acos((Math.random() * 2) - 1); 
+                const rNoise = r + (Math.random() - 0.5) * 1.0;
+                const x = rNoise * Math.sin(phi) * Math.cos(theta);
+                const y = rNoise * Math.sin(phi) * Math.sin(theta);
+                const z = rNoise * Math.cos(phi);
+                TARGETS.sphere.default.push(x, y, z);
+
+                const col = getSaturnColor(phi);
+                const v = Math.random() * 0.1;
+                TARGETS.colors.sphere.push(col.r + v, col.g + v, col.b + v);
+            }
+
+            const ringInner = 30;
+            const ringOuter = 55;
+
+            for (let i = 0; i < ringCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.sqrt(Math.random()) * (ringOuter - ringInner) + ringInner;
+                const x = radius * Math.cos(angle);
+                const z = radius * Math.sin(angle);
+                const y = (Math.random() - 0.5) * 3.0; 
+                TARGETS.ring.default.push(x, y, z);
+
+                const nRadius = (radius - ringInner) / (ringOuter - ringInner);
+                let col = CONFIG.colors.ringBright;
+                if (nRadius > 0.6 && nRadius < 0.7) col = CONFIG.colors.ringDim;
+                if (nRadius < 0.3) col = new THREE.Color().lerpColors(CONFIG.colors.ringDim, CONFIG.colors.ringBright, nRadius/0.3);
+                const v = Math.random() * 0.1;
+                TARGETS.colors.ring.push(col.r + v, col.g + v, col.b + v);
+            }
+
+            function assignTextTargets(key, points) {
+                const pushTo = (arr, pt) => arr.push(pt.x, pt.y, pt.z);
+                for (let i = 0; i < sphereCount; i++) {
+                    const pt = points.length > 0 ? points[i % points.length] : {x:0, y:0, z:0};
+                    pushTo(TARGETS.sphere[key], pt);
+                }
+                for (let i = 0; i < ringCount; i++) {
+                    const pt = points.length > 0 ? points[(i + sphereCount) % points.length] : {x:0, y:0, z:0};
+                    pushTo(TARGETS.ring[key], pt);
+                }
+            }
+
+            assignTextTargets('p', generateTextPoints('standard', "P"));
+            assignTextTargets('pa', generateTextPoints('standard', "PA"));
+            assignTextTargets('pai', generateTextPoints('standard', "PAI"));
+            assignTextTargets('paib', generateTextPoints('standard', "PAI B"));
+            
+            assignTextTargets('ready', generateTextPoints('ready'));
+            assignTextTargets('cnt5', generateTextPoints('count', "5"));
+            assignTextTargets('cnt4', generateTextPoints('count', "4"));
+            assignTextTargets('cnt3', generateTextPoints('count', "3"));
+            assignTextTargets('cnt2', generateTextPoints('count', "2"));
+            assignTextTargets('cnt1', generateTextPoints('count', "1"));
+            assignTextTargets('mixed', generateTextPoints('welcome'));
+        }
+
+        // --- 3. THREE.JS SETUP ---
+
+        function initThree() {
+            initShapes();
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0a0000, 0.002);
+
+            const aspect = window.innerWidth / window.innerHeight;
+            const d = 50; 
+            
+            camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+            camera.position.set(100, 100, 100); 
+            camera.lookAt(scene.position);
+
+            // OPTIMASI: Matikan antialias & aktifkan high-performance
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: false, 
+                alpha: true, 
+                powerPreference: "high-performance" 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x0a0000, 1);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // OPTIMASI: Perbesar ukuran partikel agar tetap terlihat penuh meski jumlah berkurang
+            const material = new THREE.PointsMaterial({
+                size: isMobile ? 3.8 : 3.0, 
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                transparent: true,
+                opacity: 1.0, 
+                map: createParticleTexture()
+            });
+
+            const sphereGeo = new THREE.BufferGeometry();
+            const sPos = new Float32Array(TARGETS.sphere.default);
+            const sCol = new Float32Array(TARGETS.colors.sphere);
+            sphereGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+            sphereGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+            sphereMesh = new THREE.Points(sphereGeo, material);
+
+            const ringGeo = new THREE.BufferGeometry();
+            const rPos = new Float32Array(TARGETS.ring.default);
+            const rCol = new Float32Array(TARGETS.colors.ring);
+            ringGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
+            ringGeo.setAttribute('color', new THREE.BufferAttribute(rCol, 3));
+            ringMesh = new THREE.Points(ringGeo, material);
+
+            particleGroup = new THREE.Group();
+            particleGroup.add(sphereMesh);
+            particleGroup.add(ringMesh);
+            scene.add(particleGroup);
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        function createParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(16,16,0,16,16,16);
+            
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,1)');
+            grad.addColorStop(1, 'transparent');
+            
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,32,32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const d = 50;
+            camera.left = -d * aspect;
+            camera.right = d * aspect;
+            camera.top = d;
+            camera.bottom = -d;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- ANIMATION ---
+
+        function updateParticles(mesh, targetArray, lerpSpeed, noiseAmp, time, offset) {
+            const positions = mesh.geometry.attributes.position.array;
+            const count = positions.length;
+            
+            for (let i = 0; i < count; i += 3) {
+                const tx = targetArray[i];
+                const ty = targetArray[i+1];
+                const tz = targetArray[i+2];
+
+                positions[i] += (tx - positions[i]) * lerpSpeed;
+                positions[i+1] += (ty - positions[i+1]) * lerpSpeed;
+                positions[i+2] += (tz - positions[i+2]) * lerpSpeed;
+
+                if (noiseAmp > 0) {
+                    positions[i] += Math.sin(time * 3 + (i+offset)) * noiseAmp;
+                    positions[i+1] += Math.cos(time * 2 + (i+offset)) * noiseAmp;
+                }
+            }
+            mesh.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateColors(mesh, targetColor, baseColors, lerpSpeed) {
+            const colors = mesh.geometry.attributes.color.array;
+            const tempColor = new THREE.Color();
+            const count = colors.length;
+            
+            for (let i = 0; i < count; i += 3) {
+                if (targetColor) {
+                    tempColor.setRGB(colors[i], colors[i+1], colors[i+2]);
+                    tempColor.lerp(targetColor, lerpSpeed);
+                    colors[i] = tempColor.r;
+                    colors[i+1] = tempColor.g;
+                    colors[i+2] = tempColor.b;
+                } else {
+                    const br = baseColors[i];
+                    const bg = baseColors[i+1];
+                    const bb = baseColors[i+2];
+                    colors[i] += (br - colors[i]) * 0.05;
+                    colors[i+1] += (bg - colors[i+1]) * 0.05;
+                    colors[i+2] += (bb - colors[i+2]) * 0.05;
+                }
+            }
+            mesh.geometry.attributes.color.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            let targetKey = 'default';
+            let targetColor = null; 
+            let lerpSpeed = 0.08;
+            let noiseAmp = 0.05;
+            let isTextMode = false;
+
+            switch (STATE.mode) {
+                case 'SATURN':
+                    targetKey = 'default';
+                    targetColor = null; 
+                    STATE.hasOpenedLink = false;
+                    STATE.explodeStartTime = null;
+                    STATE.lastPlayedCount = -1;
+                    break;
+                case 'GOLD_SPHERE':
+                    targetKey = 'default'; 
+                    targetColor = CONFIG.colors.gold;
+                    noiseAmp = 0.0; 
+                    STATE.hasOpenedLink = false;
+                    STATE.explodeStartTime = null;
+                    STATE.lastPlayedCount = -1;
+                    break;
+                case 'P': targetKey = 'p'; targetColor = CONFIG.colors.text; noiseAmp = 0; isTextMode = true; break;
+                case 'PA': targetKey = 'pa'; targetColor = CONFIG.colors.text; noiseAmp = 0; isTextMode = true; break;
+                case 'PAI': targetKey = 'pai'; targetColor = CONFIG.colors.text; noiseAmp = 0; isTextMode = true; break;
+                case 'PAIB': targetKey = 'paib'; targetColor = CONFIG.colors.text; noiseAmp = 0; isTextMode = true; break;
+                
+                case 'EXPLODE':
+                    isTextMode = true;
+                    if (!STATE.explodeStartTime) STATE.explodeStartTime = Date.now();
+                    const elapsed = Date.now() - STATE.explodeStartTime;
+                    
+                    targetColor = CONFIG.colors.gold;
+                    lerpSpeed = 0.12; 
+                    noiseAmp = 0.02;
+
+                    if (elapsed < 2000) {
+                        targetKey = 'ready';
+                        targetColor = CONFIG.colors.brightWhite;
+                    } 
+                    else if (elapsed < 3000) {
+                        targetKey = 'cnt5';
+                        if (STATE.lastPlayedCount !== 5) { playSound('count'); STATE.lastPlayedCount = 5; }
+                    }
+                    else if (elapsed < 4000) {
+                        targetKey = 'cnt4';
+                        if (STATE.lastPlayedCount !== 4) { playSound('count'); STATE.lastPlayedCount = 4; }
+                    }
+                    else if (elapsed < 5000) {
+                        targetKey = 'cnt3';
+                        if (STATE.lastPlayedCount !== 3) { playSound('count'); STATE.lastPlayedCount = 3; }
+                    }
+                    else if (elapsed < 6000) {
+                        targetKey = 'cnt2';
+                        if (STATE.lastPlayedCount !== 2) { playSound('count'); STATE.lastPlayedCount = 2; }
+                    }
+                    else if (elapsed < 7000) {
+                        targetKey = 'cnt1';
+                        if (STATE.lastPlayedCount !== 1) { playSound('count'); STATE.lastPlayedCount = 1; }
+                    }
+                    else {
+                        targetKey = 'mixed';
+                        if (STATE.lastPlayedCount !== 0) { playSound('final'); STATE.lastPlayedCount = 0; }
+                    }
+
+                    if (!STATE.hasOpenedLink && elapsed > 12000) {
+                        STATE.hasOpenedLink = true;
+                        window.open('https://pai-b-official.github.io/Web-Official/', '_blank');
+                        setTimeout(() => {
+                            window.close();
+                            document.body.innerHTML = `
+                                <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:black; color:white; font-family:sans-serif;">
+                                    <h1>Membuka Tab Baru...</h1>
+                                    <p>Anda dapat menutup tab ini sekarang.</p>
+                                    <button onclick="window.close()" style="margin-top:20px; padding:10px 20px; background:red; border:none; color:white; border-radius:5px; cursor:pointer;">Tutup Sekarang</button>
+                                </div>
+                            `;
+                        }, 1000);
+                    }
+                    break;
+            }
+
+            updateParticles(sphereMesh, TARGETS.sphere[targetKey], lerpSpeed, noiseAmp, time, 0);
+            updateParticles(ringMesh, TARGETS.ring[targetKey], lerpSpeed, noiseAmp, time, 1000);
+
+            updateColors(sphereMesh, targetColor, TARGETS.colors.sphere, 0.08);
+            updateColors(ringMesh, targetColor, TARGETS.colors.ring, 0.08);
+
+            if (isTextMode) {
+                particleGroup.lookAt(camera.position); 
+                sphereMesh.rotation.set(0, 0, 0);
+                ringMesh.rotation.set(0, 0, 0);
+            } else {
+                const targetZ = Math.PI / 4; 
+                const targetX = Math.PI / 6; 
+                
+                particleGroup.rotation.z += (targetZ - particleGroup.rotation.z) * 0.05;
+                particleGroup.rotation.x += (targetX - particleGroup.rotation.x) * 0.05;
+                particleGroup.rotation.y = 0; 
+
+                if (STATE.mode === 'GOLD_SPHERE') {
+                    ringMesh.rotation.y -= 0.3;
+                    sphereMesh.rotation.y -= 0.005;
+                } else {
+                    sphereMesh.rotation.y -= 0.002;
+                    ringMesh.rotation.y -= 0.002;
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // --- 4. GESTURE RECOGNITION ---
+
+        function getDistance(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        function detectGesture(landmarks) {
+            const wrist = landmarks[0];
+            const palmSize = getDistance(wrist, landmarks[9]); 
+
+            const isExtended = (tipIdx, pipIdx) => {
+                const distTip = getDistance(wrist, landmarks[tipIdx]);
+                const distPip = getDistance(wrist, landmarks[pipIdx]);
+                return distTip > distPip + (palmSize * 0.3); 
+            };
+
+            const indexOpen = isExtended(8, 6);
+            const middleOpen = isExtended(12, 10);
+            const ringOpen = isExtended(16, 14);
+            const pinkyOpen = isExtended(20, 18);
+            const thumbOpen = isExtended(4, 2);
+
+            let fingersOpenCount = 0;
+            if(indexOpen) fingersOpenCount++;
+            if(middleOpen) fingersOpenCount++;
+            if(ringOpen) fingersOpenCount++;
+            if(pinkyOpen) fingersOpenCount++;
+            if(thumbOpen) fingersOpenCount++;
+
+            if (fingersOpenCount >= 5 || STATE.sequenceTriggered) return 'EXPLODE';
+            
+            if (indexOpen && middleOpen && ringOpen && pinkyOpen && !thumbOpen) return 'PAIB';
+            if (indexOpen && middleOpen && ringOpen) return 'PAI';
+            if (indexOpen && middleOpen) return 'PA';
+            if (indexOpen) return 'P';
+            if (fingersOpenCount === 0) return 'GOLD_SPHERE';
+
+            return 'SATURN'; 
+        }
+
+        function onResults(results) {
+            loadingEl.style.display = 'none';
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                STATE.handPresent = true;
+                const landmarks = results.multiHandLandmarks[0];
+                const mode = detectGesture(landmarks);
+                
+                if (mode === 'EXPLODE') {
+                    STATE.sequenceTriggered = true; 
+                    STATE.mode = 'EXPLODE';
+                } else if (!STATE.sequenceTriggered) {
+                    STATE.mode = mode; 
+                }
+
+                let statusText = "STATUS: ";
+                if (STATE.sequenceTriggered) {
+                    statusText += "AUTO SEQUENCE RUNNING..."; 
+                }
+                else if (STATE.mode === 'SATURN') statusText += "STANDBY"; 
+                else if (STATE.mode === 'GOLD_SPHERE') statusText += "GENGGAM (CINCIN PUTAR CEPAT)";
+                else if (STATE.mode === 'PAIB') statusText += "PAI B (Final)";
+                else statusText += "MODE HURUF: " + STATE.mode;
+                
+                statusEl.textContent = statusText;
+                statusEl.className = (STATE.mode === 'SATURN' || STATE.mode === 'GOLD_SPHERE') ? "status-badge" : "status-badge status-active";
+
+            } else {
+                if (STATE.sequenceTriggered) {
+                    // Biarkan tetap jalan
+                } else {
+                    STATE.handPresent = false;
+                    statusEl.textContent = "TUNJUKKAN TANGAN";
+                    statusEl.className = "status-badge";
+                    STATE.mode = 'SATURN'; 
+                }
+            }
+        }
+
+        // --- INIT ---
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            // OPTIMASI: Model Complexity 0 (Lite) agar lebih cepat deteksinya
+            modelComplexity: isMobile ? 0 : 1, 
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        hands.onResults(onResults);
+
+        const videoElement = document.getElementById('input-video');
+
+        // --- NEW CAMERA LOGIC (NATIVE) ---
+        // Menggantikan Camera Utils dari MediaPipe untuk menghindari lag/crash di hosting HTTPS
+        
+        async function startCamera() {
+            loadingText.innerText = "MEMBUKA KAMERA...";
+            startBtn.classList.add('hidden');
+            
+            // Cek HTTPS (Wajib untuk akses kamera di luar localhost)
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                alert("Wajib pakai HTTPS agar kamera jalan!");
+                showError("Browser memblokir kamera karena tidak menggunakan HTTPS.");
+                return;
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: 'user', 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 30 } // Minta FPS tinggi
+                },
+                audio: false
+            };
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = stream;
+                
+                // Tunggu video metadata load baru play
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    processVideo(); // Mulai loop processing ke MediaPipe
+                    loadingEl.style.display = 'none';
+                    console.log("Kamera aktif via Native API");
+                };
+            } catch (err) {
+                console.error("Camera Error:", err);
+                showError("Akses Ditolak/Error.<br>Izinkan kamera & refresh.");
+            }
+        }
+
+        // Loop manual untuk mengirim frame ke MediaPipe dengan performa tinggi
+        async function processVideo() {
+            if (videoElement.paused || videoElement.ended) return;
+            
+            try {
+                await hands.send({image: videoElement});
+            } catch(e) {
+                // Ignore temporary frame errors
+            }
+            
+            requestAnimationFrame(processVideo);
+        }
+
+        function showError(msg) {
+            loadingText.innerHTML = msg;
+            loadingText.className = "text-red-500 font-bold mb-4 px-4";
+            startBtn.innerHTML = '<i class="fas fa-sync mr-2"></i> COBA LAGI';
+            startBtn.classList.remove('hidden');
+            statusEl.textContent = "Error Kamera";
+            statusEl.style.color = "red";
+        }
+
+        startBtn.addEventListener('click', () => {
+            startCamera();
+        });
+
+        // Auto start
+        startCamera();
+
+    </script>
+</body>
+</html>
